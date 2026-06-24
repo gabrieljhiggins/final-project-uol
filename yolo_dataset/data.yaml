@@ -1,8 +1,0 @@
-path: /Users/gabrielhiggins/Desktop/Final Project/final-project-uol/yolo_dataset
-train: images/train
-val: images/val
-nc: 3
-names:
-- handgun
-- knife
-- short_rifle
