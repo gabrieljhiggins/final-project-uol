@@ -5,3 +5,6 @@ tqdm
 pillow
 opencv-python
 numpy
+streamlit 
+opencv-python 
+pandas
