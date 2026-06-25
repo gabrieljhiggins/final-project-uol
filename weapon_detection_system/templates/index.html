@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weapon Detection - Chronological Sync</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body { 
+    background: #0f1117; 
+    color: #ddd; 
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+}
+.camera-feed { 
+    width: 100%; 
+    max-height: 320px; 
+    object-fit: contain; 
+    background: #000; 
+    border: 3px solid #333; 
+    border-radius: 6px; 
+}
+.mono { 
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; 
+}
+.card-header { 
+    font-weight: 600; 
+}
+#timeline-body tr:hover { 
+    background: #222; 
+}
+</style>
+</head>
+<body>
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="text-danger mb-0">Multi-Camera Weapon Detection — True Chronological Sync</h3>
+        <div>
+            <button class="btn btn-sm btn-outline-light" onclick="downloadArchive()">
+                ⬇ Download Archive
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-3 bg-dark border-secondary">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button class="btn btn-success" onclick="start()">▶ Play</button>
+                <button class="btn btn-warning" onclick="pause()">⏸ Pause</button>
+                <button class="btn btn-secondary" onclick="reset()">⟲ Reset</button>
+                <button class="btn btn-outline-light" onclick="prevAlert()">⏮ Prev Alert</button>
+                <button class="btn btn-outline-light" onclick="nextAlert()">Next Alert ⏭</button>
+
+                <div class="flex-grow-1 mx-2" style="max-width: 600px;">
+                    <input type="range" id="slider" class="form-range" 
+                           oninput="seek(parseFloat(this.value))">
+                </div>
+                <div class="mono fw-bold fs-5" id="time" style="min-width: 90px; text-align:right;">00:00:00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4" id="camera-row"></div>
+
+    <div class="card bg-dark border-secondary">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Detection Timeline (Weapon Visible) — Chronological</span>
+            <small class="text-muted">Click "Go" to jump to event</small>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-dark table-hover mb-0">
+                <thead class="table-secondary text-dark">
+                    <tr>
+                        <th style="width: 90px;">Time</th>
+                        <th style="width: 110px;">Camera</th>
+                        <th>Event</th>
+                        <th style="width: 60px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="timeline-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-3 small text-muted text-center">
+        Frames are synchronized by real capture timestamps. 
+        Cameras without coverage at current time show "NO FEED".
+    </div>
+</div>
+
+<script>
+let cams = [], camInfo = {}, events = [];
+let gMin = 0, gMax = 0, currentTime = 0;
+let playing = false, iv = null;
+
+async function init() {
+    const r = await fetch('/api/cams');
+    const d = await r.json();
+    cams = d.cams;
+    camInfo = d.info;
+    gMin = d.global_min_ts;
+    gMax = d.global_max_ts;
+
+    const t = await fetch('/api/timeline');
+    events = await t.json();
+
+    renderCameras();
+    renderTimeline();
+    setupSlider();
+    currentTime = gMin;
+    updateAll();
+}
+
+function renderCameras() {
+    const row = document.getElementById('camera-row');
+    row.innerHTML = '';
+    if (cams.length === 0) {
+        row.innerHTML = `<div class="col-12"><div class="alert alert-warning">No cameras with annotated frames found in outputs/annotated/</div></div>`;
+        return;
+    }
+    cams.forEach(cam => {
+        const col = document.createElement('div');
+        col.className = 'col-lg-4 col-md-6';
+        col.innerHTML = `
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-header py-1 d-flex justify-content-between">
+                    <strong>${cam}</strong>
+                    <span class="badge bg-secondary" id="fcount-${cam}"></span>
+                </div>
+                <div class="card-body p-2">
+                    <img id="feed-${cam}" class="camera-feed" alt="${cam} feed">
+                    <div class="small text-muted mt-1 d-flex justify-content-between">
+                        <span>Frame <span id="fnum-${cam}">-</span></span>
+                        <span id="fts-${cam}" class="mono"></span>
+                    </div>
+                </div>
+            </div>`;
+        row.appendChild(col);
+    });
+}
+
+function setupSlider() {
+    const slider = document.getElementById('slider');
+    if (!slider) return;
+    slider.min = gMin; 
+    slider.max = gMax; 
+    slider.step = 0.5; 
+    slider.value = gMin;
+}
+
+function formatWallTime(ts) {
+    // Convert unix timestamp (from 2018-09-22 footage) to readable HH:MM:SS
+    // Uses browser's Date which should match if tz is consistent with processing machine
+    try {
+        const d = new Date(ts * 1000);
+        return d.toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: false 
+        });
+    } catch (e) {
+        return "??:??:??";
+    }
+}
+
+async function updateAll() {
+    for (const cam of cams) {
+        const res = await fetch(`/api/closest/${cam}?time=${currentTime}`);
+        const f = await res.json();
+
+        const img = document.getElementById(`feed-${cam}`);
+        const num = document.getElementById(`fnum-${cam}`);
+        const fts = document.getElementById(`fts-${cam}`);
+        const fcount = document.getElementById(`fcount-${cam}`);
+
+        if (fcount && camInfo[cam]) {
+            fcount.innerText = `${camInfo[cam].frame_count} frames`;
+        }
+
+        if (f.idx >= 0 && Math.abs(f.diff) < 4.0) {
+            if (img) {
+                img.src = `/frames/${cam}/${f.idx}?t=${Date.now()}`;
+                img.style.opacity = "1";
+                img.style.filter = "none";
+            }
+            if (num) num.innerText = f.idx;
+            if (fts) fts.innerText = f.wall_time || (f.ts.toFixed(1) + 's');
+        } else {
+            if (img) {
+                img.src = `/frames/${cam}/-1?t=${Date.now()}`;
+                img.style.opacity = "0.85";
+                img.style.filter = "grayscale(0.3)";
+            }
+            if (num) num.innerText = "NO FEED";
+            if (fts) fts.innerText = "";
+        }
+    }
+
+    // Update slider
+    const slider = document.getElementById('slider');
+    if (slider) slider.value = currentTime;
+
+    // Show proper wall-clock time from the footage (fixed from raw unix seconds)
+    document.getElementById('time').innerText = formatWallTime(currentTime);
+}
+
+function seek(t) {
+    currentTime = Math.max(gMin, Math.min(gMax, t));
+    updateAll();
+}
+
+function start() {
+    if (playing) return;
+    playing = true;
+    iv = setInterval(() => {
+        currentTime += 0.5;
+        if (currentTime > gMax) { 
+            pause(); 
+            return; 
+        }
+        updateAll();
+    }, 280);
+}
+
+function pause() {
+    playing = false;
+    if (iv) { 
+        clearInterval(iv); 
+        iv = null; 
+    }
+}
+
+function reset() {
+    pause();
+    currentTime = gMin;
+    updateAll();
+}
+
+function nextAlert() {
+    const next = events.find(e => e.seconds > currentTime + 0.05);
+    if (next) { 
+        currentTime = next.seconds; 
+        updateAll(); 
+    }
+}
+
+function prevAlert() {
+    const prevs = events.filter(e => e.seconds < currentTime - 0.05);
+    if (prevs.length) {
+        currentTime = prevs[prevs.length-1].seconds;
+        updateAll();
+    }
+}
+
+function renderTimeline() {
+    const tb = document.getElementById('timeline-body');
+    tb.innerHTML = '';
+    if (!events || events.length === 0) {
+        tb.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No weapon events detected</td></tr>';
+        return;
+    }
+    events.forEach(ev => {
+        const tr = document.createElement('tr');
+        const camBadge = `<span class="badge bg-primary">${ev.camera || '???'}</span>`;
+        tr.innerHTML = `
+            <td class="text-danger mono fw-bold">${ev.time || '--:--:--'}</td>
+            <td>${camBadge}</td>
+            <td class="small">${ev.event || 'Weapon detected'}</td>
+            <td><button class="btn btn-sm btn-outline-light py-0 px-2" onclick="jumpTo(${ev.seconds || 0})">Go</button></td>`;
+        tb.appendChild(tr);
+    });
+}
+
+function jumpTo(sec) {
+    currentTime = sec;
+    updateAll();
+}
+
+async function downloadArchive() {
+    const res = await fetch('/api/download_archive', {method: 'POST'});
+    if (!res.ok) {
+        alert("Failed to create archive");
+        return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'weapon_events_archive.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
