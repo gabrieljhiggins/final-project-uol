@@ -1,0 +1,13 @@
+ultralytics>=8.4.0
+pyyaml
+matplotlib
+tqdm
+pillow
+opencv-python
+numpy
+streamlit 
+opencv-python 
+pandas
+flask
+pathlib
+Pillow>=10.0.0

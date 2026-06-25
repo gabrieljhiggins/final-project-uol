@@ -1,7 +1,0 @@
-ultralytics>=8.4.0
-pyyaml
-matplotlib
-tqdm
-pillow
-opencv-python
-numpy
