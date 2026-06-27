@@ -3,3 +3,12 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python scripts/prepare_data.py --data_root "/Users/gabrielhiggins/Desktop/Images"
+cd /Users/gabrielhiggins/Desktop/Final\ Project/final-project-uol/weapon_detection_system
+
+python process_demo.py \
+    --model "/Users/gabrielhiggins/Desktop/Final Project/final-project-uol/yolo26n_best.pt" \
+    --image_dir /Users/gabrielhiggins/Desktop/demo_frames \
+    --output_dir ../outputs
+
+cd /Users/gabrielhiggins/Desktop/Final\ Project/final-project-uol/weapon_detection_system
+python app_demo.py --port 8080

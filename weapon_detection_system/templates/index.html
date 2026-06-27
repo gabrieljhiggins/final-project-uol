@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weapon Detection • Dashboard</title>
+    <title>Dashboard • Live Timeline</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -13,11 +13,6 @@
             font-family: 'Inter', system-ui, sans-serif;
             background: #0a0c12;
         }
-        .font-display { font-family: 'Space Grotesk', sans-serif; }
-        
-        .camera-feed {
-            transition: all 0.2s ease;
-        }
         .scanlines {
             position: absolute; inset: 0;
             background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(255,255,255,0.04) 3px, rgba(255,255,255,0.04) 4px);
@@ -26,87 +21,71 @@
         }
         @keyframes scan { 0% {background-position:0 0} 100%{background-position:0 180px} }
         
-        .marker { transition: all 0.1s ease; }
-        .event-bar { transition: all 0.1s cubic-bezier(0.4,0,0.2,1); }
+        .event-bar { transition: all 0.2s ease; }
     </style>
 </head>
 <body class="text-zinc-200">
 <div class="max-w-screen-2xl mx-auto p-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="font-display text-4xl font-semibold tracking-tighter text-red-500">Weapon Detection</h1>
-            <p class="text-zinc-400">Multi-Camera • True Chronological Sync</p>
-        </div>
-        <button onclick="downloadArchive()" 
-                class="flex items-center gap-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl transition-colors">
-            <i class="fa-solid fa-download"></i>
-            <span>Download Archive</span>
-        </button>
-    </div>
-
-    <!-- Playback Controls -->
-    <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 mb-6">
-        <div class="flex items-center gap-x-4 flex-wrap">
-            <button id="play-pause-btn"
-                    onclick="togglePlayback()"
-                    class="flex items-center gap-x-3 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
-                <i id="pp-icon" class="fa-solid fa-play"></i>
-                <span id="pp-text">Play</span>
-            </button>
-
-            <button onclick="reset()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
-                <i class="fa-solid fa-undo"></i>
-            </button>
-
-            <div class="flex items-center gap-x-1">
-                <button onclick="prevAlert()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
-                    <i class="fa-solid fa-step-backward"></i>
-                </button>
-                <button onclick="nextAlert()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
-                    <i class="fa-solid fa-step-forward"></i>
-                </button>
-            </div>
-
-            <div class="flex-1 min-w-[420px]">
-                <div class="flex justify-between text-xs text-zinc-500 mb-1 px-1 font-mono">
-                    <div id="timeline-start"></div>
-                    <div id="timeline-current" class="text-white font-medium"></div>
-                    <div id="timeline-end"></div>
-                </div>
-                <div id="timeline-scrubber" onclick="seekFromClick(event)"
-                     class="h-12 bg-zinc-950 border border-zinc-700 rounded-2xl relative cursor-pointer overflow-hidden">
-                    <div id="timeline-markers" class="absolute inset-0"></div>
-                    <div id="playhead" class="absolute w-1 h-full bg-red-500 top-0 shadow-[0_0_12px_#ef4444]"></div>
-                </div>
-            </div>
-
-            <div id="time" class="font-mono text-3xl font-semibold tabular-nums w-28 text-right"></div>
-        </div>
-    </div>
-
     <!-- Camera Feeds -->
     <div id="camera-row" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"></div>
+    
+    <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 mb-6">
+        <!-- Playback Controls -->
+        <div class="bg-zinc-900 rounded-3xl p-5 mb-6">
+            <div class="flex items-center gap-x-4 flex-wrap">
+                <button id="play-pause-btn"
+                        onclick="togglePlayback()"
+                        class="flex items-center gap-x-3 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
+                    <i id="pp-icon" class="fa-solid fa-play"></i>
+                </button>
 
-    <!-- Joint Timeline -->
-    <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="font-semibold text-xl">Joint Event Timeline</h2>
-            <span id="event-count" class="px-3 py-1 bg-red-500/10 text-red-400 text-sm rounded-2xl font-mono"></span>
+                <button onclick="reset()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
+                    <i class="fa-solid fa-undo"></i>
+                </button>
+
+                <div class="flex items-center gap-x-1">
+                    <button onclick="prevAlert()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
+                        <i class="fa-solid fa-step-backward"></i>
+                    </button>
+                    <button onclick="nextAlert()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
+                        <i class="fa-solid fa-step-forward"></i>
+                    </button>
+                </div>
+
+                <div class="flex-1 min-w-[420px]">
+                    <div class="flex justify-between text-xs text-zinc-500 mb-1 px-1 font-mono">
+                        <div id="timeline-start"></div>
+                        <div id="timeline-current" class="text-white font-medium"></div>
+                        <div id="timeline-end"></div>
+                    </div>
+                    <div id="timeline-scrubber" onclick="seekFromClick(event)"
+                        class="h-6 bg-zinc-950 border border-zinc-700 rounded-2xl relative cursor-pointer overflow-hidden">
+                        <div id="playhead" class="absolute w-1 h-full bg-white top-0 shadow-[0_0_12px_#ffffff]"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <div id="timeline-tracks" class="space-y-4"></div>
+
+        <!-- Joint Timeline -->
+        <div class="bg-zinc-900 rounded-3xl p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-semibold text-xl">Joint Event Timeline</h2>
+                <span id="event-count" class="px-3 py-1 bg-red-500/10 text-red-400 text-sm rounded-2xl font-mono"></span>
+            </div>
+            
+            <div id="timeline-tracks" class="space-y-4"></div>
+        </div>
     </div>
 </div>
 
 <script>
-// =============== STATE & INIT ===============
+// =============== STATE ===============
 let cams = [], camInfo = {}, events = [];
 let gMin = 0, gMax = 0, currentTime = 0;
 let playing = false, interval = null;
+let triggeredEventKeys = new Set();   // events that have been played at least once
 
 async function init() {
-    // Fetch cams + info
     const camsRes = await fetch('/api/cams');
     const camsData = await camsRes.json();
     cams = camsData.cams || [];
@@ -114,7 +93,6 @@ async function init() {
     gMin = camsData.global_min_ts || 0;
     gMax = camsData.global_max_ts || 0;
 
-    // Fetch events
     const timelineRes = await fetch('/api/timeline');
     events = await timelineRes.json();
 
@@ -146,7 +124,10 @@ function renderCameras() {
         div.innerHTML = `
             <div class="px-5 py-3 flex items-center justify-between border-b border-zinc-700">
                 <strong class="text-lg">${cam}</strong>
-                <span class="text-xs font-mono bg-zinc-800 px-3 py-1 rounded-2xl" id="fcount-${cam}"></span>
+                <div id="warning-${cam}" 
+                     class="hidden text-red-500 text-xl transition-opacity duration-200">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                </div>
             </div>
             <div class="relative aspect-video bg-black">
                 <img id="feed-${cam}" class="w-full h-full object-contain" alt="${cam}">
@@ -161,12 +142,11 @@ function renderCameras() {
     });
 }
 
-// =============== JOINT TIMELINE (Multi-Track) ===============
+// =============== JOINT TIMELINE ===============
 function renderJointTimeline() {
     const container = document.getElementById('timeline-tracks');
     container.innerHTML = '';
 
-    // Group events by camera
     const camGroups = {};
     cams.forEach(cam => camGroups[cam] = []);
     events.forEach(ev => {
@@ -185,17 +165,99 @@ function renderJointTimeline() {
         container.appendChild(track);
 
         const trackContainer = document.getElementById(`track-${cam}`);
+        
         camGroups[cam].forEach(ev => {
             const leftPct = ((ev.seconds - gMin) / duration) * 100;
             const bar = document.createElement('div');
+            
             bar.className = `event-bar absolute top-1 bottom-1 bg-red-500 rounded cursor-pointer`;
             bar.style.left = `${Math.max(0, Math.min(98, leftPct))}%`;
-            bar.style.width = '6px';
+            bar.style.width = '5px';
+            bar.style.opacity = '0';
+            bar.style.transform = 'scale(1)';
+            bar.dataset.seconds = ev.seconds;
+            bar.dataset.camera = cam;
             bar.title = `${ev.time} — ${ev.event}`;
-            bar.onclick = (e) => { e.stopImmediatePropagation(); jumpTo(ev.seconds); };
+            
+            bar.onclick = (e) => { 
+                e.stopImmediatePropagation(); 
+                jumpTo(ev.seconds); 
+            };
+            
             trackContainer.appendChild(bar);
         });
     });
+}
+
+// =============== WARNING TRIANGLE (short-lived) ===============
+function updateCameraWarnings() {
+    const THRESHOLD_SECONDS = 1;
+
+    cams.forEach(cam => {
+        const warning = document.getElementById(`warning-${cam}`);
+        if (!warning) return;
+
+        const passedEvents = events.filter(ev => 
+            ev.camera === cam && ev.seconds <= currentTime
+        );
+
+        if (passedEvents.length === 0) {
+            warning.classList.add('hidden');
+            return;
+        }
+
+        const latest = passedEvents.reduce((max, ev) => 
+            ev.seconds > max.seconds ? ev : max, passedEvents[0]
+        );
+
+        const secondsSinceEvent = currentTime - latest.seconds;
+
+        if (secondsSinceEvent <= THRESHOLD_SECONDS) {
+            warning.classList.remove('hidden');
+        } else {
+            warning.classList.add('hidden');
+        }
+    });
+}
+
+// =============== EVENT MARKERS — STICKY AFTER FIRST PLAY ===============
+function updateEventMarkers() {
+    const bars = document.querySelectorAll('#timeline-tracks .event-bar');
+    
+    bars.forEach(bar => {
+        const evTime = parseFloat(bar.dataset.seconds || '0');
+        const cam = bar.dataset.camera;
+        const key = `${cam}-${evTime.toFixed(2)}`;
+        
+        const hasBeenPlayed = triggeredEventKeys.has(key);
+        
+        // Show permanently if already played at least once
+        // OR show if we have now reached it for the first time
+        if (hasBeenPlayed || evTime <= currentTime + 0.01) {
+            bar.style.opacity = '1';
+            
+            // Mark it as played if we just reached it
+            if (evTime <= currentTime + 0.01 && !hasBeenPlayed) {
+                triggeredEventKeys.add(key);
+            }
+        } else {
+            bar.style.opacity = '0';
+            bar.style.transform = 'scale(1)';
+        }
+    });
+}
+
+function triggerPopAnimation(bar) {
+    if (!bar) return;
+    bar.style.transition = 'transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+    bar.style.transform = 'scale(2.6)';
+    
+    setTimeout(() => {
+        if (bar && bar.parentNode) {
+            bar.style.transition = 'all 140ms ease';
+            bar.style.transform = 'scale(1)';
+        }
+    }, 220);
 }
 
 // =============== PLAYBACK & UPDATE ===============
@@ -208,9 +270,6 @@ async function updateAll() {
             const img = document.getElementById(`feed-${cam}`);
             const num = document.getElementById(`fnum-${cam}`);
             const fts = document.getElementById(`fts-${cam}`);
-            const fcount = document.getElementById(`fcount-${cam}`);
-
-            if (fcount && camInfo[cam]) fcount.textContent = `${camInfo[cam].frame_count} frames`;
 
             if (f.idx >= 0) {
                 img.src = `/frames/${cam}/${f.idx}?t=${Date.now()}`;
@@ -220,9 +279,10 @@ async function updateAll() {
         } catch(e) {}
     }
 
-    document.getElementById('time').textContent = formatTime(currentTime);
     document.getElementById('timeline-current').textContent = formatTime(currentTime);
     updatePlayhead();
+    updateEventMarkers();      // ← now keeps already-played events visible
+    updateCameraWarnings();
 }
 
 function updatePlayhead() {
@@ -231,21 +291,37 @@ function updatePlayhead() {
     ph.style.left = `${Math.max(0, Math.min(100, percent))}%`;
 }
 
-// Playback functions (same logic as before)
 function togglePlayback() {
     playing = !playing;
     const btn = document.getElementById('play-pause-btn');
     const icon = document.getElementById('pp-icon');
-    const text = document.getElementById('pp-text');
 
     if (playing) {
         btn.classList.replace('bg-emerald-600', 'bg-amber-500');
         icon.classList.replace('fa-play', 'fa-pause');
-        text.textContent = 'Pause';
+        
         interval = setInterval(() => {
+            const prevTime = currentTime;
             currentTime += 0.6;
-            if (currentTime > gMax) { pause(); return; }
+            if (currentTime > gMax) { 
+                pause(); 
+                return; 
+            }
+            
             updateAll();
+
+            // bouncy pop only on first playback cross
+            const newEvents = events.filter(e => e.seconds > prevTime && e.seconds <= currentTime);
+            newEvents.forEach(ev => {
+                const key = `${ev.camera || 'cam'}-${ev.seconds.toFixed(2)}`;
+                if (!triggeredEventKeys.has(key)) {
+                    triggeredEventKeys.add(key);
+                    const bar = document.querySelector(
+                        `#timeline-tracks .event-bar[data-seconds="${ev.seconds}"][data-camera="${ev.camera}"]`
+                    );
+                    if (bar) triggerPopAnimation(bar);
+                }
+            });
         }, 240);
     } else {
         pause();
@@ -256,16 +332,15 @@ function pause() {
     playing = false;
     const btn = document.getElementById('play-pause-btn');
     const icon = document.getElementById('pp-icon');
-    const text = document.getElementById('pp-text');
     btn.classList.replace('bg-amber-500', 'bg-emerald-600');
     icon.classList.replace('fa-pause', 'fa-play');
-    text.textContent = 'Play';
     if (interval) clearInterval(interval);
 }
 
 function reset() {
     pause();
     currentTime = gMin;
+    triggeredEventKeys.clear();   // everything resets
     updateAll();
 }
 
@@ -294,16 +369,6 @@ function jumpTo(sec) {
 function formatTime(ts) {
     const d = new Date(ts * 1000);
     return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-}
-
-async function downloadArchive() {
-    const res = await fetch('/api/download_archive', {method: 'POST'});
-    if (!res.ok) return alert('Failed');
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'weapon_events.zip'; a.click();
-    URL.revokeObjectURL(url);
 }
 
 window.onload = init;
