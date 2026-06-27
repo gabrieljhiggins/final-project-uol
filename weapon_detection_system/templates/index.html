@@ -1,232 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Weapon Detection - Chronological Sync</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-body { 
-    background: #0f1117; 
-    color: #ddd; 
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-}
-.camera-feed { 
-    width: 100%; 
-    max-height: 320px; 
-    object-fit: contain; 
-    background: #000; 
-    border: 3px solid #333; 
-    border-radius: 6px; 
-}
-.mono { 
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; 
-}
-.card-header { 
-    font-weight: 600; 
-}
-#timeline-body tr:hover { 
-    background: #222; 
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weapon Detection • Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0a0c12;
+        }
+        .font-display { font-family: 'Space Grotesk', sans-serif; }
+        
+        .camera-feed {
+            transition: all 0.2s ease;
+        }
+        .scanlines {
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(255,255,255,0.04) 3px, rgba(255,255,255,0.04) 4px);
+            pointer-events: none; z-index: 10;
+            animation: scan 3.5s linear infinite;
+        }
+        @keyframes scan { 0% {background-position:0 0} 100%{background-position:0 180px} }
+        
+        .marker { transition: all 0.1s ease; }
+        .event-bar { transition: all 0.1s cubic-bezier(0.4,0,0.2,1); }
+    </style>
 </head>
-<body>
-<div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="text-danger mb-0">Multi-Camera Weapon Detection — True Chronological Sync</h3>
+<body class="text-zinc-200">
+<div class="max-w-screen-2xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
         <div>
-            <button class="btn btn-sm btn-outline-light" onclick="downloadArchive()">
-                ⬇ Download Archive
+            <h1 class="font-display text-4xl font-semibold tracking-tighter text-red-500">Weapon Detection</h1>
+            <p class="text-zinc-400">Multi-Camera • True Chronological Sync</p>
+        </div>
+        <button onclick="downloadArchive()" 
+                class="flex items-center gap-x-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl transition-colors">
+            <i class="fa-solid fa-download"></i>
+            <span>Download Archive</span>
+        </button>
+    </div>
+
+    <!-- Playback Controls -->
+    <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 mb-6">
+        <div class="flex items-center gap-x-4 flex-wrap">
+            <button id="play-pause-btn"
+                    onclick="togglePlayback()"
+                    class="flex items-center gap-x-3 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-semibold transition-colors">
+                <i id="pp-icon" class="fa-solid fa-play"></i>
+                <span id="pp-text">Play</span>
             </button>
-        </div>
-    </div>
 
-    <div class="card mb-3 bg-dark border-secondary">
-        <div class="card-body py-2">
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button class="btn btn-success" onclick="start()">▶ Play</button>
-                <button class="btn btn-warning" onclick="pause()">⏸ Pause</button>
-                <button class="btn btn-secondary" onclick="reset()">⟲ Reset</button>
-                <button class="btn btn-outline-light" onclick="prevAlert()">⏮ Prev Alert</button>
-                <button class="btn btn-outline-light" onclick="nextAlert()">Next Alert ⏭</button>
+            <button onclick="reset()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
+                <i class="fa-solid fa-undo"></i>
+            </button>
 
-                <div class="flex-grow-1 mx-2" style="max-width: 600px;">
-                    <input type="range" id="slider" class="form-range" 
-                           oninput="seek(parseFloat(this.value))">
-                </div>
-                <div class="mono fw-bold fs-5" id="time" style="min-width: 90px; text-align:right;">00:00:00</div>
+            <div class="flex items-center gap-x-1">
+                <button onclick="prevAlert()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
+                    <i class="fa-solid fa-step-backward"></i>
+                </button>
+                <button onclick="nextAlert()" class="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">
+                    <i class="fa-solid fa-step-forward"></i>
+                </button>
             </div>
+
+            <div class="flex-1 min-w-[420px]">
+                <div class="flex justify-between text-xs text-zinc-500 mb-1 px-1 font-mono">
+                    <div id="timeline-start"></div>
+                    <div id="timeline-current" class="text-white font-medium"></div>
+                    <div id="timeline-end"></div>
+                </div>
+                <div id="timeline-scrubber" onclick="seekFromClick(event)"
+                     class="h-12 bg-zinc-950 border border-zinc-700 rounded-2xl relative cursor-pointer overflow-hidden">
+                    <div id="timeline-markers" class="absolute inset-0"></div>
+                    <div id="playhead" class="absolute w-1 h-full bg-red-500 top-0 shadow-[0_0_12px_#ef4444]"></div>
+                </div>
+            </div>
+
+            <div id="time" class="font-mono text-3xl font-semibold tabular-nums w-28 text-right"></div>
         </div>
     </div>
 
-    <div class="row g-3 mb-4" id="camera-row"></div>
+    <!-- Camera Feeds -->
+    <div id="camera-row" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"></div>
 
-    <div class="card bg-dark border-secondary">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Detection Timeline (Weapon Visible) — Chronological</span>
-            <small class="text-muted">Click "Go" to jump to event</small>
+    <!-- Joint Timeline -->
+    <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="font-semibold text-xl">Joint Event Timeline</h2>
+            <span id="event-count" class="px-3 py-1 bg-red-500/10 text-red-400 text-sm rounded-2xl font-mono"></span>
         </div>
-        <div class="card-body p-0">
-            <table class="table table-sm table-dark table-hover mb-0">
-                <thead class="table-secondary text-dark">
-                    <tr>
-                        <th style="width: 90px;">Time</th>
-                        <th style="width: 110px;">Camera</th>
-                        <th>Event</th>
-                        <th style="width: 60px;"></th>
-                    </tr>
-                </thead>
-                <tbody id="timeline-body"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="mt-3 small text-muted text-center">
-        Frames are synchronized by real capture timestamps. 
-        Cameras without coverage at current time show "NO FEED".
+        
+        <div id="timeline-tracks" class="space-y-4"></div>
     </div>
 </div>
 
 <script>
+// =============== STATE & INIT ===============
 let cams = [], camInfo = {}, events = [];
 let gMin = 0, gMax = 0, currentTime = 0;
-let playing = false, iv = null;
+let playing = false, interval = null;
 
 async function init() {
-    const r = await fetch('/api/cams');
-    const d = await r.json();
-    cams = d.cams;
-    camInfo = d.info;
-    gMin = d.global_min_ts;
-    gMax = d.global_max_ts;
+    // Fetch cams + info
+    const camsRes = await fetch('/api/cams');
+    const camsData = await camsRes.json();
+    cams = camsData.cams || [];
+    camInfo = camsData.info || {};
+    gMin = camsData.global_min_ts || 0;
+    gMax = camsData.global_max_ts || 0;
 
-    const t = await fetch('/api/timeline');
-    events = await t.json();
+    // Fetch events
+    const timelineRes = await fetch('/api/timeline');
+    events = await timelineRes.json();
 
     renderCameras();
-    renderTimeline();
-    setupSlider();
+    setupTimeline();
     currentTime = gMin;
     updateAll();
-}
 
-function renderCameras() {
-    const row = document.getElementById('camera-row');
-    row.innerHTML = '';
-    if (cams.length === 0) {
-        row.innerHTML = `<div class="col-12"><div class="alert alert-warning">No cameras with annotated frames found in outputs/annotated/</div></div>`;
-        return;
-    }
-    cams.forEach(cam => {
-        const col = document.createElement('div');
-        col.className = 'col-lg-4 col-md-6';
-        col.innerHTML = `
-            <div class="card bg-dark border-secondary h-100">
-                <div class="card-header py-1 d-flex justify-content-between">
-                    <strong>${cam}</strong>
-                    <span class="badge bg-secondary" id="fcount-${cam}"></span>
-                </div>
-                <div class="card-body p-2">
-                    <img id="feed-${cam}" class="camera-feed" alt="${cam} feed">
-                    <div class="small text-muted mt-1 d-flex justify-content-between">
-                        <span>Frame <span id="fnum-${cam}">-</span></span>
-                        <span id="fts-${cam}" class="mono"></span>
-                    </div>
-                </div>
-            </div>`;
-        row.appendChild(col);
+    document.addEventListener('keydown', e => {
+        if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
     });
 }
 
-function setupSlider() {
-    const slider = document.getElementById('slider');
-    if (!slider) return;
-    slider.min = gMin; 
-    slider.max = gMax; 
-    slider.step = 0.5; 
-    slider.value = gMin;
+function setupTimeline() {
+    document.getElementById('timeline-start').textContent = formatTime(gMin);
+    document.getElementById('timeline-end').textContent = formatTime(gMax);
+    document.getElementById('event-count').textContent = events.length + ' events';
+    renderJointTimeline();
 }
 
-function formatWallTime(ts) {
-    // Convert unix timestamp (from 2018-09-22 footage) to readable HH:MM:SS
-    // Uses browser's Date which should match if tz is consistent with processing machine
-    try {
-        const d = new Date(ts * 1000);
-        return d.toLocaleTimeString('en-GB', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit', 
-            hour12: false 
+// =============== RENDER CAMERAS ===============
+function renderCameras() {
+    const container = document.getElementById('camera-row');
+    container.innerHTML = '';
+
+    cams.forEach(cam => {
+        const div = document.createElement('div');
+        div.className = 'bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden';
+        div.innerHTML = `
+            <div class="px-5 py-3 flex items-center justify-between border-b border-zinc-700">
+                <strong class="text-lg">${cam}</strong>
+                <span class="text-xs font-mono bg-zinc-800 px-3 py-1 rounded-2xl" id="fcount-${cam}"></span>
+            </div>
+            <div class="relative aspect-video bg-black">
+                <img id="feed-${cam}" class="w-full h-full object-contain" alt="${cam}">
+                <div class="scanlines"></div>
+                <div class="absolute top-3 right-3 bg-black/70 text-[10px] px-2 py-0.5 rounded font-mono" id="fts-${cam}"></div>
+            </div>
+            <div class="px-5 py-2 text-xs flex justify-between text-zinc-400">
+                <span>Frame <span id="fnum-${cam}" class="font-mono">-</span></span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// =============== JOINT TIMELINE (Multi-Track) ===============
+function renderJointTimeline() {
+    const container = document.getElementById('timeline-tracks');
+    container.innerHTML = '';
+
+    // Group events by camera
+    const camGroups = {};
+    cams.forEach(cam => camGroups[cam] = []);
+    events.forEach(ev => {
+        if (camGroups[ev.camera]) camGroups[ev.camera].push(ev);
+    });
+
+    const duration = gMax - gMin;
+
+    Object.keys(camGroups).forEach(cam => {
+        const track = document.createElement('div');
+        track.className = 'flex items-center gap-4';
+        track.innerHTML = `
+            <div class="w-24 font-medium text-sm">${cam}</div>
+            <div class="flex-1 relative h-8 bg-zinc-950 border border-zinc-700 rounded-2xl overflow-hidden" id="track-${cam}"></div>
+        `;
+        container.appendChild(track);
+
+        const trackContainer = document.getElementById(`track-${cam}`);
+        camGroups[cam].forEach(ev => {
+            const leftPct = ((ev.seconds - gMin) / duration) * 100;
+            const bar = document.createElement('div');
+            bar.className = `event-bar absolute top-1 bottom-1 bg-red-500 rounded cursor-pointer`;
+            bar.style.left = `${Math.max(0, Math.min(98, leftPct))}%`;
+            bar.style.width = '6px';
+            bar.title = `${ev.time} — ${ev.event}`;
+            bar.onclick = (e) => { e.stopImmediatePropagation(); jumpTo(ev.seconds); };
+            trackContainer.appendChild(bar);
         });
-    } catch (e) {
-        return "??:??:??";
-    }
+    });
 }
 
+// =============== PLAYBACK & UPDATE ===============
 async function updateAll() {
     for (const cam of cams) {
-        const res = await fetch(`/api/closest/${cam}?time=${currentTime}`);
-        const f = await res.json();
+        try {
+            const res = await fetch(`/api/closest/${cam}?time=${currentTime}`);
+            const f = await res.json();
 
-        const img = document.getElementById(`feed-${cam}`);
-        const num = document.getElementById(`fnum-${cam}`);
-        const fts = document.getElementById(`fts-${cam}`);
-        const fcount = document.getElementById(`fcount-${cam}`);
+            const img = document.getElementById(`feed-${cam}`);
+            const num = document.getElementById(`fnum-${cam}`);
+            const fts = document.getElementById(`fts-${cam}`);
+            const fcount = document.getElementById(`fcount-${cam}`);
 
-        if (fcount && camInfo[cam]) {
-            fcount.innerText = `${camInfo[cam].frame_count} frames`;
-        }
+            if (fcount && camInfo[cam]) fcount.textContent = `${camInfo[cam].frame_count} frames`;
 
-        if (f.idx >= 0 && Math.abs(f.diff) < 4.0) {
-            if (img) {
+            if (f.idx >= 0) {
                 img.src = `/frames/${cam}/${f.idx}?t=${Date.now()}`;
-                img.style.opacity = "1";
-                img.style.filter = "none";
+                num.textContent = f.idx;
+                fts.textContent = f.wall_time || (f.ts ? f.ts.toFixed(1)+'s' : '');
             }
-            if (num) num.innerText = f.idx;
-            if (fts) fts.innerText = f.wall_time || (f.ts.toFixed(1) + 's');
-        } else {
-            if (img) {
-                img.src = `/frames/${cam}/-1?t=${Date.now()}`;
-                img.style.opacity = "0.85";
-                img.style.filter = "grayscale(0.3)";
-            }
-            if (num) num.innerText = "NO FEED";
-            if (fts) fts.innerText = "";
-        }
+        } catch(e) {}
     }
 
-    // Update slider
-    const slider = document.getElementById('slider');
-    if (slider) slider.value = currentTime;
-
-    // Show proper wall-clock time from the footage (fixed from raw unix seconds)
-    document.getElementById('time').innerText = formatWallTime(currentTime);
+    document.getElementById('time').textContent = formatTime(currentTime);
+    document.getElementById('timeline-current').textContent = formatTime(currentTime);
+    updatePlayhead();
 }
 
-function seek(t) {
-    currentTime = Math.max(gMin, Math.min(gMax, t));
-    updateAll();
+function updatePlayhead() {
+    const ph = document.getElementById('playhead');
+    const percent = ((currentTime - gMin) / (gMax - gMin)) * 100;
+    ph.style.left = `${Math.max(0, Math.min(100, percent))}%`;
 }
 
-function start() {
-    if (playing) return;
-    playing = true;
-    iv = setInterval(() => {
-        currentTime += 0.5;
-        if (currentTime > gMax) { 
-            pause(); 
-            return; 
-        }
-        updateAll();
-    }, 280);
+// Playback functions (same logic as before)
+function togglePlayback() {
+    playing = !playing;
+    const btn = document.getElementById('play-pause-btn');
+    const icon = document.getElementById('pp-icon');
+    const text = document.getElementById('pp-text');
+
+    if (playing) {
+        btn.classList.replace('bg-emerald-600', 'bg-amber-500');
+        icon.classList.replace('fa-play', 'fa-pause');
+        text.textContent = 'Pause';
+        interval = setInterval(() => {
+            currentTime += 0.6;
+            if (currentTime > gMax) { pause(); return; }
+            updateAll();
+        }, 240);
+    } else {
+        pause();
+    }
 }
 
 function pause() {
     playing = false;
-    if (iv) { 
-        clearInterval(iv); 
-        iv = null; 
-    }
+    const btn = document.getElementById('play-pause-btn');
+    const icon = document.getElementById('pp-icon');
+    const text = document.getElementById('pp-text');
+    btn.classList.replace('bg-amber-500', 'bg-emerald-600');
+    icon.classList.replace('fa-pause', 'fa-play');
+    text.textContent = 'Play';
+    if (interval) clearInterval(interval);
 }
 
 function reset() {
@@ -236,38 +270,20 @@ function reset() {
 }
 
 function nextAlert() {
-    const next = events.find(e => e.seconds > currentTime + 0.05);
-    if (next) { 
-        currentTime = next.seconds; 
-        updateAll(); 
-    }
+    const next = events.find(e => e.seconds > currentTime);
+    if (next) { currentTime = next.seconds; updateAll(); }
 }
 
 function prevAlert() {
-    const prevs = events.filter(e => e.seconds < currentTime - 0.05);
-    if (prevs.length) {
-        currentTime = prevs[prevs.length-1].seconds;
-        updateAll();
-    }
+    const prev = [...events].reverse().find(e => e.seconds < currentTime);
+    if (prev) { currentTime = prev.seconds; updateAll(); }
 }
 
-function renderTimeline() {
-    const tb = document.getElementById('timeline-body');
-    tb.innerHTML = '';
-    if (!events || events.length === 0) {
-        tb.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No weapon events detected</td></tr>';
-        return;
-    }
-    events.forEach(ev => {
-        const tr = document.createElement('tr');
-        const camBadge = `<span class="badge bg-primary">${ev.camera || '???'}</span>`;
-        tr.innerHTML = `
-            <td class="text-danger mono fw-bold">${ev.time || '--:--:--'}</td>
-            <td>${camBadge}</td>
-            <td class="small">${ev.event || 'Weapon detected'}</td>
-            <td><button class="btn btn-sm btn-outline-light py-0 px-2" onclick="jumpTo(${ev.seconds || 0})">Go</button></td>`;
-        tb.appendChild(tr);
-    });
+function seekFromClick(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    currentTime = gMin + percent * (gMax - gMin);
+    updateAll();
 }
 
 function jumpTo(sec) {
@@ -275,20 +291,18 @@ function jumpTo(sec) {
     updateAll();
 }
 
+function formatTime(ts) {
+    const d = new Date(ts * 1000);
+    return d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
 async function downloadArchive() {
     const res = await fetch('/api/download_archive', {method: 'POST'});
-    if (!res.ok) {
-        alert("Failed to create archive");
-        return;
-    }
+    if (!res.ok) return alert('Failed');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'weapon_events_archive.zip';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    a.href = url; a.download = 'weapon_events.zip'; a.click();
     URL.revokeObjectURL(url);
 }
 
