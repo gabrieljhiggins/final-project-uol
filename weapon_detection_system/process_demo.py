@@ -77,7 +77,7 @@ def main():
                 })
                 last_log_ts = ts
 
-            # === Save as standard frame_XXXXX.jpg ===
+            # Save as standard .jpg
             out_name = f"frame_{frame_idx:05d}.jpg"
             cv2.imwrite(str(cam_ann_dir / out_name), results.plot())
 
@@ -95,7 +95,7 @@ def main():
     with open(out_dir / "timeline.json", "w") as f:
         json.dump(events, f, indent=2)
 
-    print(f"\n✅ Done! Total weapon events: {len(events)}")
+    print(f"\n Done! Total weapon events: {len(events)}")
     print(f"Annotated frames saved in: {ann_dir}")
 
 
