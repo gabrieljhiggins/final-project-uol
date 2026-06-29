@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo Dashboard for Weapon Detection
-Run with: python app_demo.py --port 8080
+Dashboard for Weapon Detection
 """
 
 from flask import Flask, render_template, send_file, jsonify, request
@@ -21,10 +20,8 @@ from camera_utils import (
     load_timeline as _load_timeline,
 )
 
-# ==================== CONFIG ====================
-BASE_DIR = Path(__file__).parent
 
-# Default: look for outputs/ one level up (final-project-uol/outputs)
+BASE_DIR = Path(__file__).parent
 DEFAULT_OUTPUT = BASE_DIR.parent / "outputs"
 
 ANNOTATED_DIR = DEFAULT_OUTPUT / "annotated"
@@ -37,7 +34,7 @@ def load_timeline():
     return _load_timeline(TIMELINE_JSON)
 
 
-# ==================== ROUTES ====================
+# ROUTES
 
 @app.route("/")
 def index():
@@ -117,7 +114,7 @@ def download_archive():
     return send_file(zpath, as_attachment=True, download_name="weapon_events_archive.zip")
 
 
-# ==================== MAIN ====================
+# MAIN
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser(description="Demo Dashboard - Weapon Detection")
