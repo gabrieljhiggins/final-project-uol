@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Camera data loading and time-sync utilities.
-Supports metadata.json (recommended) + legacy fallback.
 """
 
 from pathlib import Path
@@ -57,7 +56,7 @@ def get_cam_data(cam: str, annotated_dir: Path) -> Dict[str, Any]:
         except Exception as e:
             print(f"[WARN] metadata.json error for {cam}: {e}")
 
-    # Legacy fallback (parse from filename)
+    # Legacy fallback
     frames = sorted(p.glob("frame_*.jpg"))
     data = []
     for local_idx, fpath in enumerate(frames):
