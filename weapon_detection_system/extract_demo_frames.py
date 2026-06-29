@@ -42,7 +42,7 @@ def extract_cam(video_path: Path, cam_name: str, output_root: Path, start_dt: da
         ts = start_ts + (frame_idx * frame_interval)
         wall_time = (start_dt + timedelta(seconds=frame_idx * frame_interval)).strftime("%H:%M:%S.%f")[:-3]
 
-        # Filename format you requested: Cam1_150000.jpg, Cam1_150001.jpg ...
+        
         numeric_part = 150000 + frame_idx
         filename = f"{cam_name}_{numeric_part:06d}.jpg"
         filepath = cam_dir / filename
@@ -81,7 +81,7 @@ def main():
     print(f"Start time: {start_dt}")
     print(f"Reading videos from: {args.input_dir}\n")
 
-    # Mapping: input filename → output folder name
+    
     video_map = {
         1: ("Cam01.mp4", "Cam1"),
         2: ("Cam02.mp4", "Cam2"),
@@ -92,7 +92,7 @@ def main():
         video_path = args.input_dir / video_filename
         extract_cam(video_path, output_folder, args.output_dir, start_dt, args.fps)
 
-    print("\n✅ Finished!")
+    print("\n Finished!")
     print(f"Frames saved in: {args.output_dir.resolve()}")
     print("Folders created: Cam1/, Cam2/, Cam3/")
 
