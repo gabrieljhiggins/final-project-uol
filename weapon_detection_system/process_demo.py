@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Clean Demo Processor - Weapon Detection
-Saves frames as frame_XXXXX.jpg for compatibility
 """
 
 import argparse
